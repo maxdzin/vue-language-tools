@@ -1,7 +1,7 @@
 {
 	"private": true,
 	"name": "volar",
-	"version": "3.2.0",
+	"version": "3.2.1",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/vuejs/language-tools.git",
@@ -477,8 +477,7 @@
 		}
 	},
 	"scripts": {
-		"vscode:prepublish": "npm run build",
-		"build": "rolldown --config",
+		"vscode:prepublish": "rolldown --config",
 		"pack": "npx @vscode/vsce package",
 		"gen-ext-meta": "vscode-ext-gen --scope vue --output src/generated-meta.ts && cd ../.. && npm run format"
 	},
