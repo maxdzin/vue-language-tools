@@ -68,23 +68,11 @@ export function createCheckerBase(
 	);
 	const { languageServiceHost } = createLanguageServiceHost(ts, ts.sys, language, s => s, projectHost);
 	const tsLs = ts.createLanguageService(languageServiceHost);
-	const printer = ts.createPrinter(checkerOptions.printer);
-	const getScriptKind = languageServiceHost.getScriptKind?.bind(languageServiceHost);
-
-	if (checkerOptions.forceUseTs ?? true) {
-		languageServiceHost.getScriptKind = fileName => {
-			const scriptKind = getScriptKind!(fileName);
-			if (vueOptions.extensions.some(ext => fileName.endsWith(ext))) {
-				if (scriptKind === ts.ScriptKind.JS) {
-					return ts.ScriptKind.TS;
-				}
-				if (scriptKind === ts.ScriptKind.JSX) {
-					return ts.ScriptKind.TSX;
-				}
-			}
-			return scriptKind;
-		};
-	}
+	const printer = ts.createPrinter({
+		...checkerOptions.printer,
+		// @ts-expect-error internal option to prevent unicode-escaping non-ASCII characters
+		neverAsciiEscape: true,
+	});
 
 	return {
 		getExportNames,
@@ -102,6 +90,7 @@ export function createCheckerBase(
 				checker,
 				printer,
 				language,
+				fileName => language.scripts.get(fileName),
 				componentNode,
 				componentType,
 				checkerOptions.schema ?? false,
@@ -121,6 +110,8 @@ export function createCheckerBase(
 		deleteFile(fileName: string) {
 			fileName = fileName.replace(/\\/g, '/');
 			fileNamesSet.delete(fileName);
+			scriptSnapshots.delete(fileName);
+			language.scripts.delete(fileName);
 			projectVersion++;
 		},
 		reload() {
@@ -138,13 +129,13 @@ export function createCheckerBase(
 	};
 
 	function getProgramAndFile(componentPath: string) {
-		let program = tsLs.getProgram()!;
-		let sourceFile = program.getSourceFile(componentPath);
+		const program = tsLs.getProgram()!;
+		const sourceFile = program.getSourceFile(componentPath);
 		if (!sourceFile) {
-			fileNamesSet.add(componentPath);
-			projectVersion++;
-			program = tsLs.getProgram()!;
-			sourceFile = program.getSourceFile(componentPath)!;
+			throw new Error(
+				`'${componentPath}' is not part of the project. `
+					+ `Use a tsconfig that includes it, or call \`updateFile()\` to add it.`,
+			);
 		}
 		return [program, sourceFile] as const;
 	}
